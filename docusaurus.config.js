@@ -86,7 +86,7 @@ const config = {
             title: "Checkout",
             items: [
               { label: "Crear orden ecommerce", to: "/checkout" },
-              { label: "Autenticación", to: "/checkout/autenticacion" },
+              { label: "Campos del endpoint", to: "/checkout/campos" },
               { label: "Configuración del sitio", to: "/checkout/configuracion-del-sitio" },
             ],
           },

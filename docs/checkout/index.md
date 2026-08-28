@@ -35,3 +35,8 @@ El `id` de la orden es un UUID generado al crear el documento.
 
 - [Autenticación](/checkout/autenticacion): API key, entidad y resolución del sitio por host.
 - [Configuración del sitio](/checkout/configuracion-del-sitio): campos de `sites` que el endpoint lee.
+- [Campos del endpoint](/checkout/campos): inventario del body, origen de cada valor y ejemplos.
+- [Ítems, precios y stock](/checkout/items-precios-y-stock): cómo se arman las líneas y de dónde sale el precio.
+- [Envíos](/checkout/envios): zonas, métodos, reglas y recolección en tienda.
+- [Descuentos](/checkout/descuentos): `extra_discount_percent` y `extra_discount_amount`.
+- [Gift cards](/checkout/gift-cards): hasta dos tarjetas y cotización previa.

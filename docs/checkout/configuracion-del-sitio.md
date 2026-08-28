@@ -18,8 +18,8 @@ Un **sitio** (`sites`) es la configuración de una tienda en línea de la entida
 
 ## Configuraciones de Zauru
 
-- **accept_extra_discount_from_endpoint**: si está activo, el body puede traer `extra_discount_percent` o `extra_discount_amount`.
-- **skip_stock_validation**: si está activo, el checkout no exige `available + incoming` en agencias ecommerce. El listado GraphQL no cambia.
+- **accept_extra_discount_from_endpoint**: si está activo, el body puede traer `extra_discount_percent` o `extra_discount_amount`. Ver [Descuentos](/checkout/descuentos).
+- **skip_stock_validation**: si está activo, el checkout no exige `available + incoming` en agencias ecommerce. El listado GraphQL no cambia. Ver [Ítems, precios y stock](/checkout/items-precios-y-stock).
 - **skip_zauru_sync**: si está activo, la orden y el pago no se envían a Zauru. La integración queda en webhooks u otros sistemas. **GiftCard no se puede usar** en este modo.
 - **user_email**: correo del usuario de Zauru con permisos ecommerce. Header `X-User-Email` al POST de `ecommerce_requests`.
 - **token**: token de ese usuario. Header `X-User-Token`.
@@ -53,4 +53,4 @@ El checkout encola el correo por SQS salvo cuando el pago de tarjeta queda pendi
 
 ## Lo que el sitio no configura
 
-Zonas, métodos y reglas de envío viven en colecciones `shipping_*` de la entidad, no en el sitio. El sitio solo se pasa a `calculateShippingCost` para filtrar métodos asociados.
+Zonas, métodos y reglas de envío viven en colecciones `shipping_*` de la entidad, no en el sitio. El sitio solo se pasa a `calculateShippingCost` para filtrar métodos asociados. Ver [Envíos](/checkout/envios).
