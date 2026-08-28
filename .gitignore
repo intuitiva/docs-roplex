@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Docusaurus build & cache
+build/
+.docusaurus/
+.cache/
+
+# Caches
+npm-cache/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Local Netlify
+.netlify/
+.gstack/
+.superpowers/
+.worktrees/
