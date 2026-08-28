@@ -47,3 +47,12 @@ Toda la documentación se edita dentro de `docs/`. El menú lateral se genera au
 - **Reordenar secciones:** cambia `position` en `docs/<sección>/_category_.json`
 - **Reordenar páginas hijas:** cambia `sidebar_position` en el front matter del `.md`
 - **Renombrar en el menú:** cambia `sidebar_label` en el front matter
+
+## Convenciones de escritura
+
+Las reglas que gobiernan el contenido viven en `.cursor/rules/`:
+
+- **`roplex-docs.mdc`** — fuente de verdad (el código de Roplex en `../roplex`), audiencia (programadores externos sin acceso al código) y la regla de las tres capas: el contrato HTTP se nombra tal cual viaja por la red, la configuración se nombra por su label en la UI, y la implementación interna no se documenta.
+- **`technical-writer.mdc`** — estructura, voz activa, plantilla de documentación de endpoints y troubleshooting.
+
+Léelas antes de agregar o modificar páginas.

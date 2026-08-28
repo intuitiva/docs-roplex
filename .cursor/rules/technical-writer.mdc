@@ -1,0 +1,144 @@
+---
+description: Usar al crear o revisar documentación técnica, referencias de API, guías de instalación, READMEs o cualquier contenido que explique cómo funciona un sistema, herramienta o proceso para una audiencia técnica. Frases disparadoras - "documenta este endpoint", "escribe un README", "crea una guía de configuración". NO usar para copy de marketing ni para contenido general dirigido a audiencias no técnicas.
+globs: docs/**/*.md,docs/**/*.mdx,README.md
+---
+
+# Technical Writer
+
+## Resumen
+
+Produce documentación técnica clara, exacta y usable de inmediato: desde referencias de endpoints y guías de SDK hasta instalaciones y secciones de troubleshooting. Aplica voz activa, lenguaje preciso, estructura consistente y ejemplos de código que realmente corren. El resultado se calibra al nivel técnico de la audiencia: una guía para desarrolladores se lee distinto a un runbook de operaciones.
+
+## Cuándo usarla
+
+- READMEs de repositorios
+- Referencias de REST, GraphQL o métodos de un SDK
+- Guías de instalación, configuración o despliegue
+- Guías de troubleshooting y FAQ
+- Runbooks internos, SOPs, registros de decisiones de arquitectura
+- Documentación de CLIs y sus flags
+- Notas de versión y changelogs
+
+## Cuándo NO usarla
+
+- Copy de marketing sobre las funciones de un producto
+- Contenido how-to para audiencia general, sin código ni pasos específicos del sistema
+- Posts de blog que casualmente tratan temas técnicos
+- Documentación legal o de cumplimiento que exige lenguaje certificado
+
+## Referencia rápida
+
+| Tarea | Enfoque |
+|---|---|
+| Estructura | Resumen → Prerrequisitos → Pasos → Ejemplos de código → Troubleshooting |
+| Voz | Activa: "Ejecute el comando", no "El comando debe ser ejecutado" |
+| Bloques de código | Siempre con lenguaje declarado, siempre con un ejemplo que funciona |
+| Prerrequisitos | Versiones exactas, dependencias y accesos requeridos |
+| Docs de API | Método, path, parámetros (nombre/tipo/requerido), request de ejemplo, respuesta de ejemplo, errores |
+| Calibración | Principiante: explique el porqué. Intermedio: explique el qué. Experto: muestre el código primero |
+| Troubleshooting | Mensaje de error → causa probable → solución |
+
+## Instrucciones
+
+1. **Defina el tipo de documento y la audiencia.** Antes de escribir, identifique qué tipo de documento es (guía, referencia, tutorial, explicación), quién lo lee, y qué necesita **hacer** después de leerlo, no solo qué necesita saber.
+
+2. **Elija la estructura correcta.**
+   - **Tutorial:** orientado al aprendizaje. Recorre un ejemplo concreto. Éxito = el lector lo reproduce.
+   - **Guía how-to:** orientada a la tarea. Pasos para lograr un objetivo específico, sin desvíos.
+   - **Referencia:** orientada a la información. Docs de API, flags, opciones de configuración. Prioriza completitud sobre narrativa.
+   - **Explicación:** orientada a la comprensión. Arquitectura, conceptos. Responde el "por qué".
+
+3. **Escriba primero el esqueleto:**
+
+```markdown
+# Título del documento
+## Resumen (qué hace y por qué importa)
+## Prerrequisitos (versiones exactas, herramientas, accesos)
+## [Secciones principales / Pasos]
+## Troubleshooting
+## Recursos relacionados
+```
+
+4. **Escriba en voz activa. Siempre.**
+   - Mal: "El archivo de configuración puede ser editado para cambiar el timeout."
+   - Bien: "Edite el archivo de configuración para cambiar el timeout."
+   - Mal: "Se recomienda que los usuarios reinicien el servicio."
+   - Bien: "Reinicie el servicio después de aplicar cambios."
+
+5. **Formatee bien los ejemplos de código.** Use bloques cercados con el lenguaje declarado. Muestre un comando o snippet real y ejecutable, no pseudocódigo. Para terminal, use `bash`. En procesos de varios pasos, numere los comandos y muestre la salida esperada cuando ayude.
+
+6. **Documente endpoints con esta estructura:**
+
+````markdown
+## POST /ruta-del-endpoint
+
+Descripción breve de qué hace el endpoint.
+
+### Request
+
+**Headers:**
+
+| Header | Valor |
+|---|---|
+| Content-Type | application/json |
+| Authorization | Bearer {token} |
+
+**Parámetros:**
+
+| Nombre | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| param | string | Sí | Qué hace |
+
+**Ejemplo de request:**
+
+```json
+{ }
+```
+
+### Respuesta
+
+**Éxito (200):**
+
+```json
+{ }
+```
+
+**Errores:**
+
+| Código | Significado |
+|---|---|
+| 400 | Bad request – falta un campo requerido |
+| 401 | Unauthorized – token inválido o expirado |
+````
+
+7. **Escriba prerrequisitos precisos.** No diga "necesita Node". Diga "Node.js 20 o superior (`node --version` para verificar)".
+
+8. **Agregue una sección de Troubleshooting a todo documento procedimental.** Estructura: mensaje de error o síntoma exacto → causa probable → solución. La gente busca el texto del error, así que reprodúzcalo tal cual.
+
+9. **Calibre la jerga a la audiencia.** Principiante: defina los términos en su primer uso. Intermedio: defina solo los poco comunes. Experto: omita definiciones y muestre el código primero.
+
+## Buenas prácticas
+
+- Escriba para quien busca la documentación en un momento de frustración: haga que cada sección sea encontrable.
+- Pruebe cada ejemplo de código antes de publicarlo. Un ejemplo roto destruye la confianza al instante.
+- Use bloques de nota (`> **Nota:**`, `> **Advertencia:**`) para señalar trampas y advertencias importantes.
+- Mantenga separada la documentación de referencia de la de tutorial. Mezclarlas confunde.
+- Versione la documentación junto al código. Documentación desactualizada es peor que no tener documentación.
+- Use terminología consistente: elija una palabra por concepto y manténgala.
+
+## Errores comunes
+
+- **Prerrequisitos faltantes:** asumir que el lector tiene el mismo entorno que usted.
+- **Pseudocódigo en lugar de código ejecutable:** si no se puede copiar y pegar, no es documentación.
+- **Voz pasiva:** vuelve la documentación burocrática y más difícil de seguir.
+- **Sin troubleshooting:** todo documento procedimental necesita uno, porque algo va a salir mal.
+- **Documentar la implementación en vez de la interfaz:** el lector necesita saber qué hace, no cómo funciona por dentro.
+- **Párrafos largos:** la documentación técnica debe ser escaneable. Use tablas, viñetas y encabezados con generosidad.
+
+## Tips
+
+- Escriba primero el ejemplo de código y después la prosa alrededor.
+- Use una sección "Pruébelo" temprano en los tutoriales para dar confianza.
+- En CLIs, documente primero el caso de uso más común y después los flags avanzados.
+- Si un paso es opcional, etiquételo: "Opcional: configurar TLS".
+- Incluya la salida esperada de los comandos para que el lector sepa cómo se ve el éxito.

@@ -1,0 +1,83 @@
+---
+description: Contexto obligatorio para escribir o revisar la documentación de Roplex - fuente de verdad, audiencia y qué se puede nombrar.
+alwaysApply: true
+---
+
+# Documentación de Roplex
+
+## Fuente de verdad
+
+Esta documentación describe el proyecto **Roplex**, cuyo código vive en `../roplex` (ruta absoluta: `/Users/oscar/Documents/GitHub/roplex`).
+
+Verifique toda afirmación contra ese repositorio antes de escribirla. No derive contenido de memoria, ni de otra página de esta misma documentación, ni de convenciones que "suelen ser así" en Payload o Next.js. Si no puede confirmar un comportamiento en el código, no lo documente.
+
+## Audiencia
+
+El lector es un **programador de otra empresa** que integra su tienda con Roplex. Tiene acceso a:
+
+- El admin de Roplex, con rol `admin` o `shop_manager`, limitado a su propia entidad.
+- Los endpoints HTTP de Roplex y el GraphQL de catálogo, con una clave de API.
+
+**No tiene acceso al código de Roplex.** No puede leer nombres de columnas, de funciones ni de colecciones. Solo ve lo que aparece en pantalla y lo que viaja por HTTP.
+
+Es documentación técnica y detallada. Detallada no significa exponer internals: significa que el contrato HTTP y la configuración están completos, con ejemplos ejecutables y errores exhaustivos.
+
+## La regla de las tres capas
+
+Todo lo que se escribe cae en una de tres capas. Solo dos se documentan.
+
+| Capa | Qué es | Cómo se documenta |
+|---|---|---|
+| **Contrato HTTP** | Paths, métodos, campos del body, claves del JSON de respuesta, valores de `code`, headers, query params | Con el nombre exacto, tal cual viaja por la red |
+| **Configuración en el admin** | Pestañas y campos que el usuario ve en la UI de Roplex | Solo con el label exacto de pantalla, precedido de su pestaña |
+| **Implementación interna** | Todo lo demás | No se documenta. Se elimina |
+
+### Vocabulario prohibido
+
+Nunca escriba en la documentación:
+
+- Nombres de funciones o servicios internos (`getSiteForUser`, `calculateShippingCost`, `dispatchEcommerceIntegration`, `validateBillTo`).
+- "El handler", "el mapper", "el servicio", "la colección X de Payload", "Local API", "custom endpoint de Payload".
+- Detalles de consulta a base de datos: `depth: 2`, joins, `.docs`, índices.
+- Expresiones regulares o snippets de código fuente que expliquen cómo se transforma un valor. Describa el efecto observable.
+- Nombres de infraestructura o variables de entorno (`SQS`, `APP_ENV`, `ZAURU_HOST_PRODUCTION`). Diga "según el ambiente" o "la cola de correo".
+- Rutas de archivos del código de Roplex.
+- Nombres de tablas o campos de base de datos cuando el lector solo ve un label en pantalla.
+
+### Cómo nombrar la configuración
+
+Siempre `pestaña → label exacto en pantalla`, con el label en negrita.
+
+Correcto:
+
+> En la pestaña **Configuraciones de Zauru**, active el checkbox **Recibir descuento extra desde endpoint de ventas**.
+
+Incorrecto:
+
+> El sitio debe tener `accept_extra_discount_from_endpoint` en `true`.
+
+Lo mismo aplica a las colecciones: use el nombre del menú (**Zonas de Envío**, **Métodos de Envío**, **Respuestas de Webhooks**, **Tasas de Cambio**), no el slug.
+
+### Excepción
+
+Si un nombre también viaja en el body o en la respuesta de un endpoint, es contrato y se escribe tal cual: `extra_discount_percent`, `gift_card_1_id_number`, `redirect_data`, `device_data_collection_url`, `store_pickup`.
+
+Un mismo concepto puede tener las dos formas. El checkbox se nombra por su label; el campo del body que ese checkbox habilita se nombra por su clave.
+
+## Convenciones de escritura
+
+- Español, voz activa, `usted` implícito.
+- Un concepto, una palabra. No alterne entre "tienda", "storefront" y "comercio" para lo mismo.
+- Los mensajes de error se citan textualmente, en el idioma en que los devuelve la API, porque el lector los va a buscar tal cual.
+- Front matter de Docusaurus en toda página: `title`, `sidebar_label`, `sidebar_position`.
+- Links internos con path absoluto del sitio: `/checkout/campos`.
+
+## Validación
+
+Antes de dar por terminado un cambio, ejecute:
+
+```bash
+npm run build
+```
+
+El build falla con links rotos o MDX inválido. Esa es la prueba de correctitud del repositorio.
