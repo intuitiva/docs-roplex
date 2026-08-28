@@ -83,8 +83,12 @@ const config = {
         style: "light",
         links: [
           {
-            title: "Documentación",
-            items: [{ label: "Inicio", to: "/" }],
+            title: "Checkout",
+            items: [
+              { label: "Crear orden ecommerce", to: "/checkout" },
+              { label: "Autenticación", to: "/checkout/autenticacion" },
+              { label: "Configuración del sitio", to: "/checkout/configuracion-del-sitio" },
+            ],
           },
           {
             title: "Contacto",
