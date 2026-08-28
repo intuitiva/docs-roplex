@@ -1,0 +1,47 @@
+/**
+ * Roplex docs — tema mínimo.
+ * Tipografía: Sora (encabezados) + system UI (cuerpo).
+ */
+
+@import "@fontsource/sora/400.css";
+@import "@fontsource/sora/600.css";
+@import "@fontsource/sora/700.css";
+@import "@fontsource/sora/800.css";
+
+:root {
+  --ifm-color-primary: #1b4f8a;
+  --ifm-color-primary-dark: #18477c;
+  --ifm-color-primary-darker: #174375;
+  --ifm-color-primary-darkest: #133760;
+  --ifm-color-primary-light: #1e5798;
+  --ifm-color-primary-lighter: #1f5b9f;
+  --ifm-color-primary-lightest: #2467b4;
+
+  --ifm-font-family-base: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ifm-font-family-heading: "Sora", system-ui, sans-serif;
+  --ifm-heading-font-family: var(--ifm-font-family-heading);
+  --ifm-font-family-monospace: "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+  --ifm-font-size-base: 16px;
+  --ifm-line-height-base: 1.65;
+  --ifm-heading-weight: 700;
+  --ifm-code-font-size: 95%;
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #7eb4f0;
+  --ifm-color-primary-dark: #5da1ec;
+  --ifm-color-primary-darker: #4c97ea;
+  --ifm-color-primary-darkest: #1d7be3;
+  --ifm-color-primary-light: #9fc7f4;
+  --ifm-color-primary-lighter: #b0d1f6;
+  --ifm-color-primary-lightest: #e1eefc;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--ifm-heading-font-family);
+}

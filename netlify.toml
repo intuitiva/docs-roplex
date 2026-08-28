@@ -1,0 +1,23 @@
+# Netlify build configuration for the Roplex docs site (Docusaurus).
+#
+# The site source lives at the repository root. Netlify runs
+# `npm install` automatically before `command`, then publishes the
+# generated `build/` directory as static assets.
+
+[build]
+  command = "npm run build"
+  publish = "build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--no-audit --no-fund"
+
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
