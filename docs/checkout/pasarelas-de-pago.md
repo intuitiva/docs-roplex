@@ -1,82 +1,141 @@
 ---
 title: Pasarelas de pago
 sidebar_label: Pasarelas de pago
-sidebar_position: 9
+sidebar_position: 10
 ---
 
-El sitio elige **una** pasarela de tarjeta (`sites.payment_method`: `neo_pay`, `qpaypro` o `bac_powertranz`). Vacío = no se cobra con tarjeta. Transferencia y GiftCard son complementarias, no sustituyen ese select.
+El sitio elige **una** pasarela de tarjeta en **Método de Pago de Roplex**, con tres opciones posibles: `neo_pay`, `qpaypro` o `bac_powertranz`. Si el selector está vacío, el sitio no cobra con tarjeta.
 
-El body no manda el nombre de la pasarela. Si están los ocho campos de tarjeta, se usa `sites.payment_method`. Si están los de transferencia, se registra un `bank_transfer_request`. No se pueden combinar tarjeta y transferencia para el restante.
+La transferencia bancaria y las gift cards no dependen de ese selector: funcionan en paralelo.
 
-## Monedas
+## Cómo se elige el medio de cobro
 
-Antes de cobrar se valida `currency_id` contra el bloque activo:
+El body no manda el nombre de la pasarela. Si llegan los ocho campos de tarjeta, se usa la pasarela configurada en el sitio. Si llegan los de transferencia, se registra un comprobante bancario. No se pueden combinar tarjeta y transferencia para cubrir el mismo restante.
 
-| Bloque | Monedas |
+Ver [Campos del endpoint](/checkout/campos#cómo-se-decide-el-medio-de-pago).
+
+## Monedas admitidas
+
+Antes de cobrar, Roplex valida el `currency_id` de la orden contra el bloque de configuración activo:
+
+| Bloque en el sitio | Monedas que acepta |
 |---|---|
-| `neo_pay` | GTQ (id 1) |
-| `bac-powertranz` | GTQ (id 1) |
-| `qpaypro` | GTQ (id 1) o USD (id 2) |
-| `transferencias` | cualquiera |
+| **Configuración de NeoPay** | GTQ |
+| **Configuración de BAC** | GTQ |
+| **Configuración de QPayPro** | GTQ o USD |
+| **Configuración de Transferencias** | Cualquiera |
 
-El select del sitio usa `bac_powertranz`; el slug del bloque es `bac-powertranz`.
+NeoPay y BAC cobran **siempre en GTQ**. Si los ítems están en otra moneda, el restante se convierte a GTQ con las **Tasas de Cambio** de la entidad. QPayPro cobra en GTQ o USD según el método mapeado.
 
-Si la moneda no es compatible: HTTP 400. Si el bloque no tiene fila `currency_payment_methods` para esa moneda: HTTP 400 `No hay un método de pago configurado para la moneda…`.
+Dos rechazos posibles, ambos HTTP 400:
 
-NeoPay y BAC cobran **siempre en GTQ**. Si los ítems van en otra moneda, se convierte el restante a GTQ con `exchange_rates` (`computePaymentAmount`). QPayPro cobra en GTQ o USD según el método mapeado. Sin tasa: HTTP 400.
+- La moneda no es compatible con la pasarela.
+- El bloque no tiene fila para esa moneda en **Mapeo de monedas a métodos de pago**: `No hay un método de pago configurado para la moneda…`.
 
-## Tarjeta: bill-to
+Sin tasa de cambio para convertir a la moneda de la pasarela, la respuesta también es HTTP 400. A diferencia del precio de los ítems, aquí no hay respaldo: el cobro no puede continuar.
 
-Con tarjeta se carga `states` por `state` (id numérico). `city` es el municipio (texto). El bill-to de la pasarela usa:
+## Dirección de facturación de la tarjeta
 
-- **FirstName** / **LastName**: del body
-- **Email** / teléfono: del `ecommerce_client`
-- **AddressOne**: `address_line_1`
-- **Locality**: `city`
-- **AdministrativeArea**: sufijo de `state.iso3166_2_code` (parte después del guion)
-- **PostalCode**: `state.postal_code` (no el `postal_code` del body)
-- **Country**: `state.country.code`
+Cuando hay cobro con tarjeta, Roplex arma la dirección de facturación con estos datos:
 
-Si `validateBillTo` falla, HTTP 400 con el mensaje de esa validación.
+| Dato en la pasarela | De dónde sale |
+|---|---|
+| Nombre y apellido | `firstName` y `lastName` del body |
+| Correo y teléfono | Del cliente de la orden |
+| Dirección | `address_line_1` |
+| Municipio | `city` |
+| Departamento | Código del estado resuelto a partir de `state` |
+| Código postal | Código postal del **estado**, no el `postal_code` del body |
+| País | País del estado resuelto |
+
+Si esa dirección no pasa la validación, la respuesta es HTTP 400 con el detalle de qué falta.
 
 ## NeoPay
 
-Credenciales del bloque `neo_pay`: `merchant_user`, `merchant_passwd`, `terminal_id`, `card_acq_id`, `api_url`, ambiente, Visa Cuotas.
+Credenciales en el bloque **Configuración de NeoPay** del sitio.
 
-American Express (`003`) no se procesa: HTTP 400 `American Express no es soportado por NeoPay`.
+American Express no se procesa: HTTP 400 con `American Express no es soportado por NeoPay`.
 
-El cobro es el paso 1 de 3-D Secure. La respuesta 200 incluye `neo_pay_request_id`, `access_token` y `device_data_collection_url`. `orders.state` queda `processing`. El banco vuelve a `/api/order-step5?neo_pay_request_id=…&user_id=…` y luego a `/api/order-step5-process`. Desde ahí se redirige a Webstudio (`success_redirect_path` o `error_redirect_path` concatenados al `url_commerce` del ambiente).
+El cobro **no termina en la respuesta del checkout**. La respuesta 200 abre el flujo de 3-D Secure y trae `neo_pay_request_id`, `access_token` y `device_data_collection_url`. La orden queda en estado `processing`, y ni el correo ni el envío a Zauru se disparan todavía.
 
-Mientras haya `device_data_collection_url`, el checkout **no** envía webhooks ni correo. Eso ocurre en el step 5.
+La tienda debe completar los pasos siguientes. El flujo completo está en [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure).
 
 ## QPayPro
 
-Credenciales del bloque `qpaypro`: `x_login`, `x_private_key`, `x_api_secret`, `api_url`, ambiente, Visa Cuotas.
+Credenciales en el bloque **Configuración de QPayPro** del sitio.
 
-Si el cobro sale bien, `orders.state` queda `paid` y `message` es `Orden creada - Pago exitoso`. `payment_response` trae `qpaypro_request_id`, `transaction_id`, `authorization_code`, `should_redirect` y, si hay redirect, `redirect_url` con `/{order_id}?status=success`.
+Es la única pasarela que resuelve el cobro dentro de la propia llamada al checkout. Si el cobro sale bien, la orden queda `paid` y el `message` es `Orden creada - Pago exitoso`. La respuesta trae:
 
-Si falla, HTTP 400/500 con `qpaypro_response.redirect_url` hacia `error_redirect_path` y `should_redirect: true`.
+```json
+{
+  "success": true,
+  "user_message": "…",
+  "qpaypro_request_id": 1,
+  "transaction_id": "…",
+  "authorization_code": "…",
+  "redirect_url": "https://tienda.ejemplo.com/confirmacion-de-orden/<order_id>?status=success",
+  "should_redirect": true
+}
+```
+
+`redirect_url` apunta a **su tienda**, no a Roplex: es a donde debe llevar al comprador. Solo viene cuando el cobro fue exitoso y `should_redirect` es `true`.
+
+Si el cobro falla, la respuesta es HTTP 400 o 500 e incluye `qpaypro_response` con un `redirect_url` hacia el **Path de Error de Pago** del sitio.
 
 ## BAC PowerTranz
 
-Credenciales del bloque `bac-powertranz`: `powertranz_id`, `powertranz_password`, `api_url`, ambiente, Visa Cuotas.
+Credenciales en el bloque **Configuración de BAC** del sitio.
 
-Paso 1 de 3-D Secure. Si hay `redirect_data`, `orders.state` queda `processing` y no se envían webhooks ni correo. El banco vuelve a `/api/bac-step5?bac_request_id=…&user_id=…`. Si el paso 1 sale bien **sin** `redirect_data`, el estado queda `paid`.
+Como NeoPay, el cobro arranca en el checkout y termina después de la autenticación del banco. La respuesta 200 trae `bac_request_id`, `spi_token`, `redirect_data`, `requires_payment` y `requires_3ds_authentication`, y el `message` es `Orden creada - Pendiente de autenticación 3D-Secure`.
 
-`payment_response` incluye `bac_request_id`, `spi_token`, `redirect_data`, `requires_payment` y `requires_3ds_authentication` (este último copia `requires_payment`). El `message` de la orden en éxito de BAC es `Orden creada - Pendiente de autenticación 3D-Secure`.
+> **Advertencia:** no use `requires_3ds_authentication` para decidir si hay que autenticar. Hoy siempre llega en `false`. Use la presencia de `redirect_data`.
 
-## Transferencia
+Con `redirect_data` la orden queda `processing` y no se envían correo ni webhooks. Sin `redirect_data`, la orden queda `paid`. Ver [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure).
 
-No usa `sites.payment_method`. Usa el bloque `transferencias` solo para resolver el `payment_method_id` de Zauru.
+## Transferencia bancaria
 
-Campos: ver [Campos del endpoint](/checkout/campos). Se crean `media` (comprobante) y `bank_transfer_requests`. `orders.state` queda **`paid`**. `payment_response`: `success`, `message`, `bank_transfer_request_id`.
+No usa **Método de Pago de Roplex**. Usa el bloque **Configuración de Transferencias** únicamente para resolver el método de pago de Zauru según la moneda.
+
+Roplex guarda el comprobante adjunto y registra la solicitud de transferencia. La orden queda **`paid`** de inmediato, sin verificación previa del depósito.
+
+```json
+{
+  "success": true,
+  "message": "…",
+  "bank_transfer_request_id": 1
+}
+```
+
+Los campos del body están en [Campos del endpoint](/checkout/campos#transferencia).
 
 ## Visa Cuotas
 
-Checkboxes 3/6/10/12/18/24 y `minimum_amount` (default 1000) en cada bloque de tarjeta. `visaCuotas` en el body. Si el restante no llega al mínimo y se piden cuotas, la pasarela responde error. Si todos los checkboxes van apagados, no se ofrecen cuotas.
+Cada bloque de tarjeta tiene su propia sección **Visa Cuotas**, con un **Monto mínimo** (1000 por defecto) y checkboxes de 3, 6, 10, 12, 18 y 24 cuotas.
 
-## Sin cobro
+La tienda pide cuotas con el campo `visaCuotas` del body. Si el restante a cobrar no alcanza el mínimo, la pasarela responde error. Si todos los checkboxes están apagados, no se ofrecen cuotas.
 
-Sitio sin pasarela y body con los ocho campos de tarjeta y restante > 0: HTTP 400 pidiendo configurar el método de pago en Roplex.
+## Órdenes sin cobro
 
-Restante > 0 sin tarjeta ni transferencia: la orden se crea en `pending`, `payment_response` es `null` (o el objeto GiftCard si hubo descuento parcial), `message`: `Orden creada - Pago pendiente`.
+Dos casos:
+
+| Situación | Resultado |
+|---|---|
+| Llegan los ocho campos de tarjeta, hay restante mayor a 0 y el sitio no tiene **Método de Pago de Roplex** | HTTP 400 pidiendo configurar el método de pago en Roplex |
+| Hay restante mayor a 0 y no llegan campos de tarjeta ni de transferencia | La orden se crea en `pending`, con `message` `Orden creada - Pago pendiente` y `payment_response` en `null` |
+
+## Troubleshooting
+
+**HTTP 400 `No hay un método de pago configurado para la moneda…`**
+Falta la fila de esa moneda en **Mapeo de monedas a métodos de pago**, en el bloque de la pasarela activa.
+
+**HTTP 400 al convertir a GTQ**
+No hay tasa de cambio entre la moneda de la orden y GTQ en las **Tasas de Cambio** de la entidad. NeoPay y BAC no pueden cobrar sin ella.
+
+**HTTP 400 `American Express no es soportado por NeoPay`**
+Es una limitación de la pasarela. Si necesita Amex, use QPayPro o BAC.
+
+**El cobro con cuotas se rechaza**
+El restante no alcanza el **Monto mínimo** del bloque, o el número de cuotas pedido no está habilitado con su checkbox.
+
+**La respuesta llegó con éxito pero la orden sigue en `processing`**
+Es lo normal con NeoPay y con BAC cuando trae `redirect_data`. El cobro se completa después de la autenticación del banco.

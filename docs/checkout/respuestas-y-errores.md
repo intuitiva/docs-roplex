@@ -1,12 +1,12 @@
 ---
 title: Respuestas y errores
 sidebar_label: Respuestas y errores
-sidebar_position: 10
+sidebar_position: 12
 ---
 
-El endpoint no envuelve el éxito en `{ "success": true }` al nivel raíz. El error sí usa `success: false`.
+El éxito **no** se envuelve en `{ "success": true }` a nivel raíz. Los errores sí usan `success: false`.
 
-## HTTP 200
+## Respuesta 200
 
 ```json
 {
@@ -17,20 +17,26 @@ El endpoint no envuelve el éxito en `{ "success": true }` al nivel raíz. El er
 }
 ```
 
-- **order_id**: UUID de `orders`.
-- **gift_card**: `null` si no se aplicó ninguna. Si sí:
-  - `gift_card_1_id_number`, `gift_card_2_id_number`
-  - `gift_card_1_discount`, `gift_card_2_discount`
-  - `applied_amount`, `remaining_to_charge`
-  - `cards`: arreglo con `slot`, `code`, `gift_card_id`, `applied_amount`, `applied_amount_in_gift_card_currency`, `currency_id`, `exchange_rate_to_order_currency`
-- **message**:
-  - Transferencia ok: `Orden creada - Transferencia bancaria registrada`
-  - QPayPro ok: `Orden creada - Pago exitoso`
-  - GiftCard cubre el total: `Orden creada - Pago exitoso con GiftCard`
-  - BAC ok: `Orden creada - Pendiente de autenticación 3D-Secure`
-  - Cualquier otro éxito (incluye NeoPay 3DS): `Orden creada - Pago pendiente`
+| Clave | Tipo | Contenido |
+|---|---|---|
+| `order_id` | string | UUID de la orden. Es el identificador que debe guardar la tienda. |
+| `gift_card` | object \| null | `null` si no se aplicó ninguna tarjeta. Ver [Gift cards](/checkout/gift-cards#qué-devuelve-la-respuesta). |
+| `message` | string | Resultado en texto. Ver la tabla siguiente. |
+| `payment_response` | object \| null | Depende del medio de cobro. Ver más abajo. |
 
-### payment_response según el camino
+Valores posibles de `message`:
+
+| Situación | `message` |
+|---|---|
+| Transferencia registrada | `Orden creada - Transferencia bancaria registrada` |
+| QPayPro cobró bien | `Orden creada - Pago exitoso` |
+| Las gift cards cubrieron el total | `Orden creada - Pago exitoso con GiftCard` |
+| BAC inició el cobro | `Orden creada - Pendiente de autenticación 3D-Secure` |
+| Cualquier otro caso, incluido NeoPay | `Orden creada - Pago pendiente` |
+
+> **Nota:** `Orden creada - Pago pendiente` no significa que el cobro haya fallado. Con NeoPay es el mensaje normal de un cobro que apenas comienza.
+
+## payment_response según el medio de cobro
 
 **Transferencia**
 
@@ -47,7 +53,7 @@ El endpoint no envuelve el éxito en `{ "success": true }` al nivel raíz. El er
 ```json
 {
   "success": true,
-  "user_message": "…",
+  "user_message": "Pendiente de cobro",
   "neo_pay_request_id": 1,
   "access_token": "…",
   "device_data_collection_url": "https://…"
@@ -68,7 +74,7 @@ El endpoint no envuelve el éxito en `{ "success": true }` al nivel raíz. El er
 }
 ```
 
-`redirect_url` solo se arma si `success` y `should_redirect`.
+`redirect_url` solo aparece cuando el cobro fue exitoso y `should_redirect` es `true`.
 
 **BAC**
 
@@ -85,7 +91,7 @@ El endpoint no envuelve el éxito en `{ "success": true }` al nivel raíz. El er
 }
 ```
 
-**Solo GiftCard** (restante 0, sin pasarela ni transferencia en la respuesta):
+**Solo gift card**, cuando el restante quedó en 0:
 
 ```json
 {
@@ -104,29 +110,70 @@ El endpoint no envuelve el éxito en `{ "success": true }` al nivel raíz. El er
 
 ## Estado de la orden
 
-El campo `orders.state` no viaja en la respuesta 200. Queda así al crear:
+El estado **no viaja en la respuesta 200**. Así queda la orden al crearse:
 
-| Condición | state |
-|---|---|
-| GiftCard cubre el total | `paid` |
-| Transferencia | `paid` |
-| QPayPro ok, o BAC ok sin `redirect_data` | `paid` |
-| Tarjeta con 3DS (NeoPay; BAC con `redirect_data`) | `processing` |
-| Sin cobro | `pending` |
+| Situación | Estado | Como se ve en el admin |
+|---|---|---|
+| Las gift cards cubrieron el total | `paid` | Pagada |
+| Transferencia registrada | `paid` | Pagada |
+| QPayPro cobró bien, o BAC sin `redirect_data` | `paid` | Pagada |
+| Tarjeta pendiente de 3-D Secure | `processing` | Procesando |
+| Sin cobro | `pending` | Pendiente |
 
-Zauru puede pasar después a `invoiced`, `completed` o `cancelled`. Roplex pone `refunded` al revertir un cobro y `failed` si la tarjeta no pasa en un flujo posterior.
+Después de la creación, el estado puede cambiar:
 
-## Errores frecuentes
+| Estado | Como se ve en el admin | Quién lo pone |
+|---|---|---|
+| `invoiced` | Facturada | Zauru, al facturar |
+| `completed` | Completada | Zauru, al pagar y facturar |
+| `cancelled` | Cancelada | Zauru, al cancelar |
+| `refunded` | Reembolsada | Roplex, al revertir un cobro |
+| `failed` | Fallida | Roplex, cuando la tarjeta no pasa |
 
-Cuerpo típico: `{ "success": false, "message": "…", "user_message": "…", "code": "…" }`. `code` solo en GiftCard y algunos de cotización. `user_message` es el texto para la tienda; `message` puede ser el mismo o más técnico.
+### Consultar el estado final
+
+No hay un endpoint dedicado de estado de pago. Para confirmar el resultado de una orden, léala con la misma clave de API:
+
+```bash
+curl "https://<host-roplex>/api/orders/<order_id>" \
+  -H "Authorization: users API-Key <clave>"
+```
+
+El campo `state` de la respuesta trae el estado actual. Úselo sobre todo después de un cobro con 3-D Secure, donde el resultado llega minutos más tarde. Ver [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure).
+
+## Errores
+
+Cuerpo típico:
+
+```json
+{
+  "success": false,
+  "message": "…",
+  "user_message": "…",
+  "code": "…"
+}
+```
+
+`user_message` es el texto pensado para mostrarle al comprador; `message` puede ser el mismo o más específico. La clave `code` solo aparece en los errores de gift card y de cotización.
 
 | HTTP | Cuándo |
 |---|---|
-| 401 | Sin usuario de API key (`User not found`) |
-| 400 | Entidad no seleccionada; sin ítems; ítem/bundle inválido; `currency_id` inexistente; sin precio sugerido; total `NaN`; descuento extra inválido; GiftCard inválida o sin Zauru; tarjeta + transferencia a la vez; moneda incompatible con la pasarela; sin mapeo moneda→método; sin stock; datos de cliente; sin pasarela con campos de tarjeta; estado/ciudad faltantes para tarjeta; tipo de tarjeta desconocido; Amex + NeoPay; transferencia incompleta o sin `transFile`; conversión a GTQ/USD sin tasa |
-| 404 | GiftCard no encontrada (`GiftCardNotFound`) |
-| 400 o 500 | Fallo de pasarela: 400 si hay `user_message`, 500 si no. QPayPro además manda `qpaypro_response` y `redirect_url` de error |
-| 400 | `{ "message": "No body" }` o `{ "message": "FormData not available" }` (sin `success`) |
-| 400 | `{ "message": "No request" }` si no hay `req` |
+| 401 | Clave de API ausente o inválida: `User not found` |
+| 400 | Entidad no seleccionada; sin ítems; ítem o paquete inválido; `currency_id` inexistente; sin precio sugerido; total inválido; descuento extra inválido; gift card inválida o sin integración con Zauru; tarjeta y transferencia a la vez; moneda incompatible con la pasarela; sin mapeo de moneda a método; sin stock; datos del cliente incorrectos; campos de tarjeta sin pasarela configurada; estado o ciudad faltantes para tarjeta; tipo de tarjeta no soportado; American Express con NeoPay; transferencia incompleta o sin comprobante; sin tasa de cambio para convertir a la moneda de la pasarela |
+| 404 | Gift card no encontrada: `GiftCardNotFound` |
+| 429 | Demasiadas cotizaciones de gift card: `GiftCardQuoteRateLimitExceeded` |
+| 400 o 500 | Falla de la pasarela. Es 400 si hay `user_message`, 500 si no. QPayPro además incluye `qpaypro_response` con un `redirect_url` de error |
+| 400 | `{ "message": "No body" }` o `{ "message": "FormData not available" }`, sin la clave `success` |
 
-Los PAN, fechas y CVV no se loguean en claro.
+Los códigos de gift card están listados en [Cotización de gift card](/checkout/cotizacion-de-gift-card#errores).
+
+## Troubleshooting
+
+**La respuesta fue 200 pero el comprador no pagó**
+Revise `message` y `payment_response`. Con `Orden creada - Pago pendiente` y `payment_response` en `null`, la orden se creó sin cobro. Con NeoPay ese mismo mensaje significa que el cobro apenas empieza.
+
+**Se recibió 200 y la orden aparece en Procesando**
+Es lo esperado con 3-D Secure. Consulte el estado después, con la lectura de la orden.
+
+**Error 500 sin `user_message`**
+La pasarela devolvió algo que Roplex no pudo interpretar. Es un caso para revisar con el administrador de la tienda, no algo corregible desde el request.

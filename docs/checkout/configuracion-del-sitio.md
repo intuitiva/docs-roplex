@@ -4,53 +4,143 @@ sidebar_label: Configuración del sitio
 sidebar_position: 3
 ---
 
-Un **sitio** (`sites`) es la configuración de una tienda en línea de la entidad. El checkout lee este documento para precios, pasarela, Zauru, envíos y correo. Se edita en el admin de Roplex, pestaña a pestaña.
+Un **sitio** es la configuración de una tienda en línea. El checkout lee esa configuración para resolver precios, pasarela de pago, integración con Zauru, envíos y correos.
 
-## Información general
+Todo lo de esta página se configura en el admin de Roplex. Nada de esto se envía en el body del checkout.
 
-- **name**: nombre del sitio. Se usa como título en el admin.
-- **description**: texto opcional.
-- **ecommerce_agency**: agencia de Zauru marcada `ecommerce`. De ella sale la lista de precios (`price_list`) con la que el checkout busca `suggested_prices` current. Si falta, no hay precio y la orden se rechaza.
-- **url_commerce**: arreglo de URLs de Webstudio. Cada fila tiene `environment` (`production`, `staging`, `development`) y `link`. El host de `link` en el ambiente `APP_ENV` se usa para [resolver el sitio](/checkout/autenticacion) cuando la entidad tiene más de uno.
-- **success_redirect_path**: path concatenado al URL de comercio tras un pago exitoso (incluido el retorno 3-D Secure). Por defecto `/confirmacion-de-orden`. Vacío = redirigir al URL de comercio.
-- **error_redirect_path**: path concatenado al URL de comercio cuando el pago falla. Por defecto `/pago`.
-- **entity**: relación a la entidad. La asigna el sistema; no se envía en el checkout.
+## Dónde está
 
-## Configuraciones de Zauru
+En el menú lateral, grupo **Ecommerce** → **Sitios**.
 
-- **accept_extra_discount_from_endpoint**: si está activo, el body puede traer `extra_discount_percent` o `extra_discount_amount`. Ver [Descuentos](/checkout/descuentos).
-- **skip_stock_validation**: si está activo, el checkout no exige `available + incoming` en agencias ecommerce. El listado GraphQL no cambia. Ver [Ítems, precios y stock](/checkout/items-precios-y-stock).
-- **skip_zauru_sync**: si está activo, la orden y el pago no se envían a Zauru. La integración queda en webhooks u otros sistemas. **GiftCard no se puede usar** en este modo.
-- **user_email**: correo del usuario de Zauru con permisos ecommerce. Header `X-User-Email` al POST de `ecommerce_requests`.
-- **token**: token de ese usuario. Header `X-User-Token`.
-- **ecommerce_webhooks**: URLs que reciben por POST el mismo cuerpo de orden y pago que iría a Zauru. Cada URL es una petición independiente. Campos por fila: `label` (opcional), `url` (obligatoria, URL válida), `enabled` (por defecto activo).
+| Acción | Quién puede |
+|---|---|
+| Ver y editar sitios de su entidad | Usuarios con rol `admin` o `shop_manager` |
+| Crear un sitio | Usuarios con rol `admin` o `shop_manager` |
+| Borrar un sitio | Solo el super administrador de Roplex |
 
-Sin `token` o con `skip_zauru_sync`, Zauru no recibe la orden. Los webhooks del sitio sí se disparan si están activos y no hay 3-D Secure pendiente.
+Cada sitio pertenece a una entidad y solo es visible para los usuarios de esa entidad. Una entidad puede tener varios sitios; el checkout elige cuál usar según el host de la petición, como se explica en [Autenticación](/checkout/autenticacion).
 
-## Configuraciones de pago
+El formulario está dividido en pestañas. Las secciones siguientes usan los nombres exactos de esas pestañas.
 
-- **payment_method**: pasarela de tarjeta del sitio. Valores: `neo_pay`, `qpaypro`, `bac_powertranz`. Vacío = no se cobra con tarjeta.
-- **payment_methods**: bloques de credenciales. Puede haber un bloque por tipo:
-  - **neo_pay**: `environment`, `merchant_user`, `merchant_passwd`, `terminal_id`, `card_acq_id`, `api_url`, Visa Cuotas, mapeo moneda → método Zauru.
-  - **qpaypro**: `environment`, `x_login`, `x_private_key`, `x_api_secret`, `api_url`, Visa Cuotas, mapeo.
-  - **bac-powertranz**: `environment`, `powertranz_id`, `powertranz_password`, `api_url`, Visa Cuotas, mapeo.
-  - **transferencias**: `environment` y mapeo. No sustituye los campos `trans*` del body; sirve para resolver el `payment_method_id` de Zauru según la moneda.
+## Pestaña: Información General
 
-Visa Cuotas (en cada pasarela de tarjeta): `minimum_amount` (por defecto 1000) y checkboxes `3_cuotas`, `6_cuotas`, `10_cuotas`, `12_cuotas`, `18_cuotas`, `24_cuotas`. Si todas van en blanco, no se ofrecen cuotas.
+| Campo | Para qué sirve |
+|---|---|
+| **Name** | Nombre del sitio. Es el título con el que aparece en el listado. |
+| **Description** | Texto libre, opcional. |
+| **Agencia de Ecommerce** | Agencia de Zauru desde la que se despacha la tienda. De su lista de precios sale el precio de cada línea de la orden. Si está vacío, el checkout no encuentra precio y rechaza la orden. El selector solo lista agencias marcadas como ecommerce. |
+| **URLs de Sitios de Comercio** | Una fila por ambiente. Cada fila tiene **Ambiente** (`production`, `staging` o `development`) y **Link del Sitio de Comercio**. El host de estos links identifica a la tienda y define a dónde se redirige al comprador después de pagar. |
+| **Path de Confirmación de Orden** | Path que se concatena al link de comercio después de un pago exitoso, incluido el retorno de 3-D Secure. Por defecto `/confirmacion-de-orden`. Si se deja vacío, se redirige a la raíz del link de comercio. |
+| **Path de Error de Pago** | Path que se concatena al link de comercio cuando el pago falla. Por defecto `/pago`. |
 
-El mapeo `currency_payment_methods` asocia cada moneda con un método de pago de Zauru marcado `ecommerce` y con el mismo `currency_id`. El checkout usa esa fila para el `payment_method_id` que viaja a Zauru.
+> **Nota:** registre el link de cada ambiente en el que vaya a operar. Si el host desde el que llama el checkout no coincide con ninguna fila, Roplex usa el primer sitio de la entidad, que puede no ser el correcto.
 
-Las credenciales las proporciona cada pasarela (NeoNet, QPayPro o BAC). No se envían en el body del checkout. Detalle de cobro: [Pasarelas de pago](/checkout/pasarelas-de-pago).
+## Pestaña: Configuraciones de Zauru
 
-## Correo
+| Campo | Efecto |
+|---|---|
+| **Recibir descuento extra desde endpoint de ventas** | Habilita que el body del checkout traiga `extra_discount_percent` o `extra_discount_amount`. Apagado por defecto: con el checkbox apagado esos campos se ignoran sin devolver error. Ver [Descuentos](/checkout/descuentos). |
+| **Omitir validación de existencias en el checkout** | Con el checkbox activo, el checkout crea la orden aunque la cantidad pedida supere el stock disponible. No cambia el listado de catálogo. Ver [Ítems, precios y stock](/checkout/items-precios-y-stock). |
+| **Omitir envío a Zauru** | Con el checkbox activo, la orden y el pago no se envían a Zauru; la integración queda a cargo de los webhooks. **Las gift cards no funcionan en este modo.** |
+| **Email del Usuario** | Correo del usuario de Zauru con permisos de ecommerce. Roplex lo usa para autenticarse contra Zauru. |
+| **Token** | Token de ese usuario de Zauru. Sin token, la orden no llega a Zauru. |
+| **Webhooks de ecommerce** | URLs que reciben por POST la misma información de orden y pago que se envía a Zauru. Cada fila tiene **Nombre** (opcional), **URL del webhook** (obligatoria y debe ser una URL válida) y **Activo** (encendido por defecto). Cada URL recibe una petición independiente. |
 
-- **send_customer_order_emails**: por defecto activo. Si está apagado, no se encola el correo automático al cliente (confirmación de checkout ni voucher tras pago de pasarela). El reenvío desde admin sí envía. Los vouchers de anulación no se ven afectados.
-- **entity_email**: copia de cada pedido a este correo.
-- **reply_to_email**: remitente de respuesta para el cliente.
-- **confirmation_email_subject**, **dispatch_email_subject**, **cancellation_email_subject**: asuntos. Si van vacíos, el mailer de Zauru usa el asunto del template.
+Con **Omitir envío a Zauru** activo o sin **Token**, Zauru no recibe la orden. Los webhooks del sitio sí se disparan igual, siempre que estén activos y el pago no esté pendiente de 3-D Secure. Ver [Sincronización con Zauru](/checkout/sincronizacion-con-zauru).
 
-El checkout encola el correo por SQS salvo cuando el pago de tarjeta queda pendiente de 3-D Secure (NeoPay siempre; BAC cuando hay `redirect_data`).
+## Pestaña: Configuraciones de Pago
+
+### Método de Pago de Roplex
+
+Un selector con tres opciones: `neo_pay`, `qpaypro` y `bac_powertranz`. Define **cuál** pasarela de tarjeta usa la tienda. Si se deja en blanco, el sitio no cobra con tarjeta.
+
+La transferencia bancaria y las gift cards no dependen de este selector: funcionan en paralelo.
+
+### Bloques de credenciales
+
+Debajo del selector se agregan bloques de configuración, uno por medio de pago. Las credenciales las entrega cada proveedor (NeoNet, QPayPro o BAC); nunca viajan en el body del checkout.
+
+| Bloque | Campos de credenciales |
+|---|---|
+| **Configuración de NeoPay** | **Ambiente**, **MerchantUser**, **MerchantPasswd**, **TerminalId**, **CardAcqId**, **API URL** |
+| **Configuración de QPayPro** | **Ambiente**, **Login ID**, **Private Key**, **API Secret**, **API URL** |
+| **Configuración de BAC** | **Ambiente**, **PowerTranz-PowerTranzId**, **PowerTranz-PowerTranzPassword**, **PowerTranz-ApiUrl** |
+| **Configuración de Transferencias** | Solo **Ambiente**. No sustituye a los campos de transferencia del body; sirve para resolver el método de pago de Zauru según la moneda. |
+
+**Ambiente** acepta `production`, `staging` o `development` en los cuatro bloques.
+
+### Visa Cuotas
+
+Los tres bloques de tarjeta incluyen una sección plegable **Visa Cuotas**:
+
+- **Monto mínimo**: monto a partir del cual se pueden ofrecer cuotas. Por defecto `1000`.
+- Checkboxes **3 cuotas**, **6 cuotas**, **10 cuotas**, **12 cuotas**, **18 cuotas** y **24 cuotas**.
+
+Si deja todos los checkboxes apagados, la tienda no ofrece cuotas. Si el comprador pide cuotas y el monto no alcanza el mínimo, la pasarela rechaza el cobro.
+
+### Mapeo de monedas a métodos de pago
+
+Los cuatro bloques terminan con el arreglo **Mapeo de monedas a métodos de pago**. Cada fila asocia una **Moneda** con un **Método de pago** de Zauru.
+
+Este mapeo es obligatorio: sin una fila para la moneda de la orden, el checkout responde HTTP 400 con `No hay un método de pago configurado para la moneda…`.
+
+El selector de **Método de pago** solo lista los métodos de Zauru marcados como ecommerce cuya moneda coincide con la de la fila. Si un método no aparece en la lista, revísele esa configuración en **Management → Métodos de Pago**.
+
+Ver [Pasarelas de pago](/checkout/pasarelas-de-pago) para el detalle de cada cobro.
+
+## Pestaña: Configuraciones de Email
+
+| Campo | Efecto |
+|---|---|
+| **Enviar correos de orden al cliente** | Encendido por defecto. Apagarlo omite el correo automático al cliente después del checkout y después del pago confirmado. El reenvío manual desde el admin sigue funcionando y los correos de anulación no se ven afectados. |
+| **Email de la Entidad** | Recibe una copia de cada pedido de la tienda. |
+| **Responder email a** | Dirección de respuesta que ve el cliente. |
+| **Asunto del correo de confirmación al cliente** | Asunto del correo que recibe el cliente al confirmar su orden. |
+| **Asunto del correo de despacho (interno)** | Asunto del correo interno que recibe la empresa cuando entra un pedido nuevo. |
+| **Asunto del correo de anulación / voucher de cancelación** | Asunto del correo que recibe el cliente cuando se anula su orden. |
+
+Los tres asuntos aceptan variables, listadas en el propio formulario:
+
+| Variable | Contenido |
+|---|---|
+| `{{nombre_empresa}}` | Nombre de la empresa o tienda |
+| `{{nombre_cliente}}` | Nombre completo del cliente que hizo el pedido |
+| `{{numero_orden}}` | Número único de la orden |
+
+Ejemplo de asunto:
+
+```text
+[{{nombre_empresa}}] Gracias {{nombre_cliente}} — Orden #{{numero_orden}}
+```
+
+Si deja un asunto vacío, el correo sale con el asunto predeterminado de la plantilla.
+
+Con NeoPay y con BAC el correo no se encola en el checkout: se envía al completarse la autenticación 3-D Secure. Ver [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure).
+
+## Pestaña: Webstudio Links
+
+Links auxiliares de la tienda, que el checkout no usa:
+
+- **Link del Sitio de Registro en Webstudio**
+- **Link del Sitio de Contenido en Webstudio**
 
 ## Lo que el sitio no configura
 
-Zonas, métodos y reglas de envío viven en colecciones `shipping_*` de la entidad, no en el sitio. El sitio solo se pasa a `calculateShippingCost` para filtrar métodos asociados. Ver [Envíos](/checkout/envios).
+Las zonas, métodos y reglas de envío se configuran aparte, en el grupo **Shipping** del menú, y pertenecen a la entidad, no al sitio. Un método de envío puede restringirse a sitios concretos desde su propio campo **Sitios**. Ver [Envíos](/checkout/envios).
+
+## Troubleshooting
+
+**`No hay un método de pago configurado para la moneda…`**
+Falta la fila de esa moneda en **Mapeo de monedas a métodos de pago** del bloque activo. Agréguela en la pestaña **Configuraciones de Pago**.
+
+**El checkout responde que no hay precio sugerido para un ítem**
+El sitio no tiene **Agencia de Ecommerce**, o la lista de precios de esa agencia no tiene un precio vigente para ese ítem. Ver [Ítems, precios y stock](/checkout/items-precios-y-stock).
+
+**La orden se crea pero Zauru nunca la recibe**
+Revise que **Omitir envío a Zauru** esté apagado y que **Token** y **Email del Usuario** estén completos en la pestaña **Configuraciones de Zauru**.
+
+**Después de pagar, el comprador aterriza en el sitio equivocado**
+El host desde el que se llamó al checkout no coincide con ninguna fila de **URLs de Sitios de Comercio** para el ambiente actual. Agregue la fila correspondiente.
+
+**El comprador no recibe el correo de confirmación**
+Revise **Enviar correos de orden al cliente** en la pestaña **Configuraciones de Email**. Si el pago fue con tarjeta y quedó pendiente de 3-D Secure, el correo sale hasta que la autenticación termina.

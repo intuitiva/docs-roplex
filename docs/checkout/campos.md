@@ -4,91 +4,144 @@ sidebar_label: Campos del endpoint
 sidebar_position: 4
 ---
 
-`POST /api/orders/create-ecommerce-order` no tiene un schema TypeScript. El body es un objeto plano. Todas las claves string se recortan (`trim`) antes de validar.
+Inventario completo del body de `POST /api/orders/create-ecommerce-order`.
+
+El body es un objeto **plano**: no hay objetos anidados ni arreglos. Todos los valores de texto se recortan de espacios antes de validarse.
 
 ## Content-Type
 
-- **application/json**: body JSON. Sirve para ítems, GiftCard y tarjeta. No sirve para adjuntar el comprobante de transferencia.
-- **multipart/form-data**: obligatorio si hay `transFile`. Cada campo (salvo el archivo) se copia a la misma clave plana. `transFile` puede repetirse; se junta en un arreglo de `File`.
+| Content-Type | Cuándo usarlo |
+|---|---|
+| `application/json` | Caso normal. Sirve para ítems, gift cards y tarjeta. |
+| `multipart/form-data` | **Obligatorio** si adjunta el comprobante de transferencia. Cada campo se envía con la misma clave plana; `transFile` puede repetirse para enviar varios archivos. |
 
-Sin body JSON (y sin form-data): HTTP 400 `{ "message": "No body" }`. Sin `FormData` en una petición multipart: HTTP 400 `{ "message": "FormData not available" }`.
+Errores de formato:
 
-No existe un campo `payment_method` en el body. El cobro se **infiere**:
+| HTTP | Cuerpo | Causa |
+|---|---|---|
+| 400 | `{ "message": "No body" }` | La petición no trae body |
+| 400 | `{ "message": "FormData not available" }` | Petición multipart que no se pudo leer |
 
-- **Tarjeta** si están los ocho: `cardNumber`, `cardExpirationDate`, `cardCvv`, `firstName`, `lastName`, `address_line_1`, `state`, `city`.
-- **Transferencia** si están `transName`, `transBank` y `transDate`. Luego exige también `transNumber` y `transFile`.
-- Si GiftCard cubre el total, no se cobra el restante.
-- Si el restante es mayor a 0 y hay tarjeta **y** transferencia, HTTP 400: solo uno de los dos para el restante.
-- Si no hay tarjeta ni transferencia, la orden se crea en `pending` (salvo GiftCard que cubra todo → `paid`).
+## Cómo se decide el medio de pago
+
+**No existe un campo `payment_method` en el body.** El medio de cobro se infiere de los campos presentes:
+
+| Se infiere | Cuando llegan |
+|---|---|
+| Tarjeta | Los ocho campos: `cardNumber`, `cardExpirationDate`, `cardCvv`, `firstName`, `lastName`, `address_line_1`, `state`, `city` |
+| Transferencia | `transName`, `transBank` y `transDate`. Para completar el cobro también exige `transNumber` y `transFile` |
+
+Reglas de combinación:
+
+- Si las gift cards cubren el total, no se cobra nada más.
+- Si queda un restante mayor a 0 y llegan campos de tarjeta **y** de transferencia, HTTP 400: solo se acepta uno de los dos.
+- Si no llega ninguno de los dos, la orden se crea en estado pendiente.
 
 ## Cliente
 
-- **name**: nombre que se guarda en `ecommerce_clients`. Si el email ya existe en la entidad, se actualiza.
-- **email**: clave de búsqueda (minúsculas). Crea o actualiza el cliente de esa entidad. Si la creación falla, HTTP 400: `Error en los datos del cliente, vuelva a intentarlo`.
-- **phone**: se le quitan los no dígitos (`replace(/\D/g, "")`) y se guarda en el cliente y en la orden.
-- **tin**: NIT. Si falta, se usa `"CF"`.
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `name` | string | Sí | Nombre del cliente. Si el correo ya existe en la entidad, el cliente se actualiza. |
+| `email` | string | Sí | Clave de búsqueda del cliente, en minúsculas. Crea o actualiza el cliente de la entidad. |
+| `phone` | string | No | Se conservan solo los dígitos. Se guarda en el cliente y en la orden. |
+| `tin` | string | No | NIT. Si falta, se usa `"CF"`. |
+
+Si el cliente no se puede crear, HTTP 400 con `Error en los datos del cliente, vuelva a intentarlo`.
 
 ## Líneas
 
-Las líneas no van en un arreglo. Van emparejadas por sufijo: la clave de cantidad se obtiene reemplazando el prefijo `quantity` por `item`.
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `item`, `item1`, `item2`, … | string | Sí, al menos uno | Id numérico de un ítem, o `b` + id de un paquete. Ejemplo: `b12`. |
+| `quantity`, `quantity1`, … | string | Sí | Cantidad de la línea cuyo `item*` tiene el mismo sufijo. |
 
-- **item**, **item1**, **item2**, …: id numérico de `items`, o `"b"` + id de `bundles` (ejemplo: `b12`). Cualquier otra clave que empiece por `item` entra en el mismo juego. Si el valor no es número ni bundle `b{id}`, HTTP 400.
-- **quantity**, **quantity1**, **quantity2**, …: cantidad de la línea cuyo `item*` tiene el mismo sufijo. El precio unitario **no** se envía; sale de `suggested_prices`.
-
-Hace falta al menos una clave `item*`. Ver [Ítems, precios y stock](/checkout/items-precios-y-stock).
+El precio unitario **no se envía**. Ver [Ítems, precios y stock](/checkout/items-precios-y-stock).
 
 ## Dirección y envío
 
-- **address_line_1**: dirección de entrega (`orders.delivery_address`) y dirección de facturación de la tarjeta (`AddressOne`). Obligatorio para activar el camino de tarjeta.
-- **delivery_instructions**: se guarda en la orden y viaja a Zauru/webhooks.
-- **store_pickup**: si es `true`, `"true"` o `"1"`, no se calcula envío y se añade `"Recolección en tienda"` al memo. Cualquier otro valor (incluido ausente) calcula envío.
-- **city**: municipio. Para tarjeta es obligatorio. En envío: si es numérico se usa como id de `cities`; si es texto se busca por nombre (filtrado por `state` si ya se resolvió).
-- **state**: id de `states`. Obligatorio y numérico para tarjeta. En envío se carga el estado (país vía `state.country.code`, código postal del estado para bill-to).
-- **postal_code**: entra al contexto de reglas de envío. En tarjeta, el bill-to usa el `postal_code` del **estado**, no este campo.
-- **coupon**: código de cupón para reglas de envío con `condition_type: "coupon"`.
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `address_line_1` | string | Sí para tarjeta | Dirección de entrega. También se usa como dirección de facturación de la tarjeta. |
+| `delivery_instructions` | string | No | Se guarda en la orden y viaja a Zauru y a los webhooks. |
+| `store_pickup` | string \| boolean | No | Con `true`, `"true"` o `"1"` no se calcula envío y el memo incluye `Recolección en tienda`. Cualquier otro valor calcula envío. |
+| `state` | number | Sí para tarjeta | Id del estado o departamento. Para tarjeta debe ser numérico. |
+| `city` | string \| number | Sí para tarjeta | Id numérico del municipio, o su nombre exacto. |
+| `postal_code` | string | No | Se guarda, pero hoy ninguna regla de envío lo evalúa. En el cobro con tarjeta, la dirección de facturación usa el código postal del **estado**, no este campo. |
+| `coupon` | string | No | Código de cupón para reglas de envío de tipo **Cupón**. |
 
 Ver [Envíos](/checkout/envios).
 
+### De dónde salen los ids de estado y ciudad
+
+Los catálogos geográficos se pueden consultar sin clave de API:
+
+```bash
+# Estados de un país
+curl "https://<host-roplex>/api/states?where[country][equals]=1&limit=100"
+
+# Municipios de un estado
+curl "https://<host-roplex>/api/cities?where[state][equals]=123&limit=200"
+```
+
+Use el `id` de la respuesta. Si prefiere enviar el nombre del municipio en `city`, debe coincidir exactamente con el registrado, o el envío no encuentra la zona.
+
 ## Moneda, descuento y memo
 
-- **currency_id**: id de `currencies`. Si no existe, HTTP 400. Si se omite, se usa la moneda de la entidad. Las pasarelas restringen qué moneda pueden cobrar; ver [Pasarelas de pago](/checkout/pasarelas-de-pago).
-- **extra_discount_percent** / **extra_discount_amount**: mutuamente excluyentes. Solo aplican si el sitio tiene `accept_extra_discount_from_endpoint`. Ver [Descuentos](/checkout/descuentos).
-- **memo**: texto libre. El handler concatena memos de conversión de moneda, recolección en tienda, tipo de cambio del pago y GiftCard.
-- **reference**: referencia de la orden (`orders.reference`). Default `""`.
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `currency_id` | number | No | Id de la moneda de cobro. Si no existe, HTTP 400. Si se omite, se usa la moneda de la entidad. |
+| `extra_discount_percent` | number | No | Porcentaje de descuento sobre el total. Excluyente con el siguiente. |
+| `extra_discount_amount` | number | No | Monto fijo de descuento. Excluyente con el anterior. |
+| `memo` | string | No | Texto libre. Roplex le concatena las notas de conversión de moneda, recolección en tienda, tipo de cambio del pago y gift cards. |
+| `reference` | string | No | Referencia de la orden. Por defecto vacío. |
+
+Los dos campos de descuento solo aplican si el sitio tiene activo **Recibir descuento extra desde endpoint de ventas**. Ver [Descuentos](/checkout/descuentos).
+
+Cada pasarela restringe en qué monedas puede cobrar. Ver [Pasarelas de pago](/checkout/pasarelas-de-pago).
 
 ## Tarjeta
 
-Se activan solo si están los ocho campos listados arriba. El sitio debe tener `payment_method` (`neo_pay`, `qpaypro` o `bac_powertranz`).
+Los campos de tarjeta activan el cobro solo si llegan **los ocho** listados arriba. Además, el sitio debe tener configurado un **Método de Pago de Roplex**.
 
-- **cardNumber**: número de tarjeta. Se le quitan espacios. Tipos aceptados: Visa (`001`), Mastercard (`002`), American Express (`003`). Otro BIN → HTTP 400 `Tipo de tarjeta no soportado`.
-- **cardExpirationDate**: mes y año, 4 dígitos. Se acepta `MMYY`, `MM/YY` o `MM-YY` (los dos primeros dígitos son el mes). Cada pasarela reformatea internamente (NeoPay/BAC a `YYMM`; QPayPro también valida como mes-año de 4 dígitos).
-- **cardCvv**: código de seguridad.
-- **firstName** / **lastName**: titular. Van al bill-to de la pasarela.
-- **visaCuotas**: número de cuotas (3, 6, 10, 12, 18 o 24 según lo habilitado en el sitio). Si no es número, se trata como 0 (sin cuotas). Si el total no llega al `minimum_amount` del bloque (por defecto 1000) y se piden cuotas, la pasarela rechaza.
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `cardNumber` | string | Número de tarjeta. Se ignoran los espacios. Se aceptan Visa, Mastercard y American Express. Otro tipo devuelve HTTP 400 `Tipo de tarjeta no soportado`. |
+| `cardExpirationDate` | string | Mes y año en cuatro dígitos. Se acepta `MMYY`, `MM/YY` o `MM-YY`; los dos primeros dígitos son el mes. |
+| `cardCvv` | string | Código de seguridad. |
+| `firstName` | string | Nombre del titular. Va a la dirección de facturación. |
+| `lastName` | string | Apellido del titular. |
+| `visaCuotas` | number | Número de cuotas: 3, 6, 10, 12, 18 o 24, según lo habilitado en el sitio. Un valor no numérico se trata como sin cuotas. |
 
-Los datos de tarjeta se sustituyen por `************` en logs.
+Si pide cuotas y el total no alcanza el **Monto mínimo** configurado en el sitio, la pasarela rechaza el cobro.
+
+> **Nota:** Roplex no registra el número de tarjeta, la fecha de vencimiento ni el CVV en claro en ningún lado.
 
 ## Transferencia
 
-Detección: `transName` + `transBank` + `transDate`. Para completar el cobro, también:
+Se detecta con `transName`, `transBank` y `transDate`. Para completar el cobro también exige los dos últimos.
 
-- **transName**: nombre de quien transfiere.
-- **transBank**: banco.
-- **transDate**: fecha. Si viene `DD/MM/YYYY`, se convierte a `YYYY-MM-DD`.
-- **transNumber**: número de comprobante. Obligatorio al procesar.
-- **transFile**: archivo o lista de archivos (multipart). Se sube a `media` y se asocia al `bank_transfer_request`. Obligatorio.
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `transName` | string | Nombre de quien transfiere. |
+| `transBank` | string | Banco emisor. |
+| `transDate` | string | Fecha. Si llega como `DD/MM/YYYY`, se convierte a `YYYY-MM-DD`. |
+| `transNumber` | string | Número de comprobante. Obligatorio al procesar. |
+| `transFile` | file | Comprobante. Obligatorio, y obliga a usar `multipart/form-data`. Puede repetirse. |
 
-La orden con transferencia queda en estado `paid` (el código no la deja en `pending`). Ver [Pasarelas de pago](/checkout/pasarelas-de-pago) y [Respuestas y errores](/checkout/respuestas-y-errores).
+La orden con transferencia queda pagada de inmediato. Ver [Pasarelas de pago](/checkout/pasarelas-de-pago).
 
 ## Gift cards
 
-- **gift_card_1_id_number**: código (`id_number`) de la primera tarjeta.
-- **gift_card_2_id_number**: segunda. No se puede enviar sola. Debe ser distinta de la primera.
-- **gift_card_1_discount** / **gift_card_2_discount**: tope opcional en moneda de la orden. Si se omiten, se aplica el máximo: `min(saldo convertido, restante)`. Deben ser números ≥ 0.
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `gift_card_1_id_number` | string | Código de la primera tarjeta. |
+| `gift_card_2_id_number` | string | Código de la segunda. No se puede enviar sola y debe ser distinta de la primera. |
+| `gift_card_1_discount` | number | Tope opcional a aplicar de la primera, en la moneda de la orden. Debe ser mayor o igual a 0. |
+| `gift_card_2_discount` | number | Tope opcional de la segunda. |
 
-Ver [Gift cards](/checkout/gift-cards).
+Si omite los topes, se aplica el máximo posible. Ver [Gift cards](/checkout/gift-cards) y [Cotización de gift card](/checkout/cotizacion-de-gift-card).
 
-## Ejemplo JSON (tarjeta)
+## Ejemplo: pago con tarjeta
 
 ```bash
 curl -X POST "https://<host-roplex>/api/orders/create-ecommerce-order" \
@@ -117,9 +170,9 @@ curl -X POST "https://<host-roplex>/api/orders/create-ecommerce-order" \
   }'
 ```
 
-Los ids de ítem, bundle y estado son los de Roplex (espejo de Zauru), no un SKU libre.
+El cobro con tarjeta no termina en esta respuesta: continúa con la autenticación 3-D Secure. Ver [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure).
 
-## Ejemplo multipart (transferencia)
+## Ejemplo: transferencia bancaria
 
 ```bash
 curl -X POST "https://<host-roplex>/api/orders/create-ecommerce-order" \
@@ -140,3 +193,17 @@ curl -X POST "https://<host-roplex>/api/orders/create-ecommerce-order" \
   -F "transNumber=ABC-001" \
   -F "transFile=@comprobante.pdf"
 ```
+
+## Troubleshooting
+
+**HTTP 400 `No body`**
+La petición llegó sin cuerpo, o con `Content-Type: application/json` pero sin JSON válido.
+
+**HTTP 400 pidiendo un solo medio de pago**
+Llegaron los ocho campos de tarjeta y también los de transferencia. Envíe uno solo.
+
+**La orden quedó pendiente cuando esperaba cobrarla con tarjeta**
+Falta alguno de los ocho campos de tarjeta. Con siete no se activa el cobro y la orden se crea sin pago.
+
+**Se envió `transFile` pero se rechaza la transferencia**
+Debe usar `multipart/form-data`. En JSON no se puede adjuntar el comprobante.

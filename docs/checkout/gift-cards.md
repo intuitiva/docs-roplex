@@ -4,44 +4,140 @@ sidebar_label: Gift cards
 sidebar_position: 8
 ---
 
-El checkout acepta hasta dos GiftCards sincronizadas desde Zauru (`sales_gift_cards`). Se aplican después del descuento extra y antes de la pasarela o la transferencia.
+El checkout acepta hasta **dos** gift cards por orden. Se aplican después del descuento extra y antes de la pasarela o la transferencia.
+
+Antes de crear la orden puede consultar cuánto cubriría una tarjeta con [Cotización de gift card](/checkout/cotizacion-de-gift-card). Esa consulta no crea nada ni descuenta saldo.
 
 ## Requisitos del sitio
 
-Hace falta sitio, `sites.token` y `skip_zauru_sync` **apagado**. Si no: HTTP 400, `code: GiftCardRequiresZauruSync`.
+Las gift cards exigen integración activa con Zauru. En la pestaña **Configuraciones de Zauru** del sitio:
 
-La redención local del saldo en Roplex solo corre si Zauru aceptó el `ecommerce_request`. Si el sync falla, el saldo local no se descuenta. Ver [Sincronización con Zauru](/checkout/sincronizacion-con-zauru).
+- **Omitir envío a Zauru** debe estar **apagado**.
+- **Token** debe estar lleno.
 
-## Campos en create-ecommerce-order
+Si falta alguno de los dos, o no se resolvió sitio, la respuesta es HTTP 400 con `code: GiftCardRequiresZauruSync`:
 
-- **gift_card_1_id_number**: código (`id_number`). Obligatorio si se usa la 2.
-- **gift_card_2_id_number**: segunda tarjeta. No se puede enviar sola (`GiftCardPairingInvalid`). Debe ser distinta de la 1 (`GiftCardDuplicate`).
-- **gift_card_1_discount** / **gift_card_2_discount**: tope opcional en **moneda de la orden**. Número ≥ 0. Si falta, se usa el máximo aplicable. Valor inválido → `GiftCardDiscountInvalid`.
+| Situación | `message` |
+|---|---|
+| No se resolvió sitio | `GiftCard requires a site configuration with active Zauru integration.` |
+| **Omitir envío a Zauru** activo | `GiftCard cannot be used when skip_zauru_sync is enabled.` |
+| Sin **Token** | `GiftCard requires a valid Zauru token in site configuration.` |
 
-Cada tarjeta se cotiza contra el restante (neto menos lo ya aplicado). El monto aplicado es el mínimo entre saldo convertido, tope pedido (si hay) y restante de la orden. Si el aplicable es 0, esa tarjeta se omite y se sigue con la siguiente.
+## Campos del checkout
 
-Si el restante llega a 0, no se llama a la pasarela ni a transferencia. `orders.state` queda `paid`.
+| Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|
+| `gift_card_1_id_number` | string | Si usa alguna tarjeta | Código de la primera tarjeta. |
+| `gift_card_2_id_number` | string | No | Código de la segunda. |
+| `gift_card_1_discount` | number | No | Tope a aplicar de la primera, en la moneda de la orden. Debe ser mayor o igual a 0. |
+| `gift_card_2_discount` | number | No | Tope de la segunda. |
 
-## Cotización previa
+Combinaciones válidas: ninguna tarjeta, solo la primera, o las dos. Enviar solo la segunda es un error.
 
-`POST /api/orders/gift-card-quote` (misma API key). Rate limit por usuario o IP; si se excede, HTTP 429 `GiftCardQuoteRateLimitExceeded`.
+Si omite un tope, se aplica el máximo posible.
 
-Campos del JSON:
+## Cómo se aplican
 
-- **gift_card_1_id_number** o **gift_card_code**: código.
-- **gift_card_1_discount** o **requested_amount**: tope opcional.
-- **order_total**: total a cubrir (opcional).
-- **extra_discount_amount**: se resta de `order_total` antes de cotizar.
-- **currency_id**: misma regla que el checkout.
+Las tarjetas se cotizan en orden, una contra el restante que deja la anterior:
 
-La cotización no crea orden ni descuenta saldo.
+```text
+monto aplicado = mínimo entre (saldo convertido, tope pedido, restante de la orden)
+```
 
-## Estados de la tarjeta
+Si el monto aplicable de una tarjeta es 0, esa tarjeta simplemente se omite y se continúa con la siguiente. No es un error.
 
-La tarjeta debe existir en la entidad, no estar `voided`, estar `issued` y tener `current_balance` > 0. El tipo debe tener moneda. Si la moneda de la tarjeta y la de la orden difieren, hace falta `exchange_rates`.
+Cuando el restante llega a 0, no se llama a la pasarela ni a la transferencia y la orden queda pagada.
 
-Códigos frecuentes: `GiftCardNotFound` (404), `GiftCardVoided`, `GiftCardNotIssued`, `GiftCardWithoutBalance`, `GiftCardExchangeRateUnavailable`.
+## Errores de validación
 
-## Qué se guarda
+Todos son HTTP 400, salvo el de tarjeta no encontrada:
 
-En la orden: `gift_card_1_id_number`, `gift_card_2_id_number`, descuentos por slot y total. El memo incluye el desglose. La respuesta 200 trae el objeto `gift_card` con `applied_amount`, `remaining_to_charge` y el arreglo `cards`.
+| `code` | HTTP | Causa |
+|---|---|---|
+| `GiftCardPairingInvalid` | 400 | Se envió `gift_card_2_id_number` sin `gift_card_1_id_number` |
+| `GiftCardDuplicate` | 400 | Las dos tarjetas tienen el mismo código |
+| `GiftCardDiscountInvalid` | 400 | Un tope no es un número mayor o igual a 0 |
+| `GiftCardRequiresZauruSync` | 400 | Falta la integración con Zauru, ver arriba |
+| `GiftCardNotFound` | 404 | El código no existe en la entidad |
+| `GiftCardVoided` | 400 | La tarjeta está anulada |
+| `GiftCardNotIssued` | 400 | La tarjeta no ha sido emitida |
+| `GiftCardWithoutBalance` | 400 | La tarjeta no tiene saldo |
+| `GiftCardExchangeRateUnavailable` | 400 | No hay tasa de cambio entre la moneda de la tarjeta y la de la orden |
+
+La lista completa, con los textos de `message` y `user_message`, está en [Cotización de gift card](/checkout/cotizacion-de-gift-card#errores).
+
+## Qué devuelve la respuesta
+
+La respuesta 200 del checkout siempre trae la clave `gift_card`. Es `null` si no se aplicó ninguna tarjeta. Si sí:
+
+```json
+{
+  "gift_card_1_id_number": "GC-8891",
+  "gift_card_2_id_number": "GC-8892",
+  "gift_card_1_discount": 100.0,
+  "gift_card_2_discount": 40.0,
+  "applied_amount": 140.0,
+  "remaining_to_charge": 50.0,
+  "cards": [
+    {
+      "slot": 1,
+      "code": "GC-8891",
+      "gift_card_id": 1042,
+      "applied_amount": 100.0,
+      "applied_amount_in_gift_card_currency": 100.0,
+      "currency_id": 1,
+      "exchange_rate_to_order_currency": 1
+    },
+    {
+      "slot": 2,
+      "code": "GC-8892",
+      "gift_card_id": 1043,
+      "applied_amount": 40.0,
+      "applied_amount_in_gift_card_currency": 40.0,
+      "currency_id": 1,
+      "exchange_rate_to_order_currency": 1
+    }
+  ]
+}
+```
+
+| Clave | Tipo | Significado |
+|---|---|---|
+| `gift_card_1_id_number` | string \| null | Código de la primera tarjeta |
+| `gift_card_2_id_number` | string \| null | Código de la segunda |
+| `gift_card_1_discount` | number | Monto aplicado de la primera, en moneda de la orden. `0` si no se usó |
+| `gift_card_2_discount` | number | Monto aplicado de la segunda |
+| `applied_amount` | number | Suma de ambas |
+| `remaining_to_charge` | number | Lo que debe cobrar la pasarela o la transferencia |
+| `cards` | array | Solo las tarjetas que efectivamente aplicaron |
+| `cards[].slot` | 1 \| 2 | Posición en la que se envió |
+| `cards[].applied_amount_in_gift_card_currency` | number | Monto aplicado en la moneda de la tarjeta |
+| `cards[].exchange_rate_to_order_currency` | number | Tasa usada en la conversión |
+
+Cuando las gift cards cubren el total, el `message` de la orden es `Orden creada - Pago exitoso con GiftCard` y `payment_response` repite los mismos montos, sin el arreglo `cards`. Ver [Respuestas y errores](/checkout/respuestas-y-errores).
+
+En la orden también quedan guardados los códigos, los descuentos por posición y el total, y el memo incluye el desglose.
+
+## Cuándo se descuenta el saldo
+
+El saldo de la tarjeta en Roplex se descuenta **solo después de que Zauru acepta la orden**. Consecuencias prácticas:
+
+- Si Zauru rechaza la orden, la respuesta 200 igual muestra los montos aplicados, pero el saldo de la tarjeta **no** se movió.
+- Si el restante se cobra con tarjeta y ese cobro pasa por 3-D Secure, el envío a Zauru se difiere hasta que la autenticación termine, y con él el descuento del saldo. Ver [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure).
+- Los demás casos —solo gift card, transferencia y QPayPro— sincronizan justo después de crear la orden.
+
+Reintentar el envío de la misma orden no descuenta el saldo dos veces.
+
+## Troubleshooting
+
+**HTTP 400 `GiftCardRequiresZauruSync`**
+Es configuración del sitio, no del request. Revise **Omitir envío a Zauru** y **Token** en la pestaña **Configuraciones de Zauru**.
+
+**HTTP 404 `GiftCardNotFound` con un código que existe**
+La búsqueda es exacta y está limitada a su entidad. Revise mayúsculas, guiones y espacios.
+
+**La tarjeta se aceptó pero el saldo sigue igual**
+Zauru todavía no aceptó la orden, o el pago sigue pendiente de 3-D Secure. Revise el resultado del envío en **External Integrations → Respuestas de Webhooks**.
+
+**La tarjeta cubría más de lo que aplicó**
+El monto se limita al restante de la orden y al tope que haya enviado en `gift_card_1_discount` o `gift_card_2_discount`. También puede ser conversión de moneda: cotícela antes con [Cotización de gift card](/checkout/cotizacion-de-gift-card).
