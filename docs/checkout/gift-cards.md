@@ -10,7 +10,7 @@ El checkout acepta hasta dos GiftCards sincronizadas desde Zauru (`sales_gift_ca
 
 Hace falta sitio, `sites.token` y `skip_zauru_sync` **apagado**. Si no: HTTP 400, `code: GiftCardRequiresZauruSync`.
 
-La redención local del saldo en Roplex solo corre si Zauru aceptó el `ecommerce_request`. Si el sync falla, el saldo local no se descuenta.
+La redención local del saldo en Roplex solo corre si Zauru aceptó el `ecommerce_request`. Si el sync falla, el saldo local no se descuenta. Ver [Sincronización con Zauru](/checkout/sincronizacion-con-zauru).
 
 ## Campos en create-ecommerce-order
 

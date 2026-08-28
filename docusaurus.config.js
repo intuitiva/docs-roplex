@@ -87,7 +87,7 @@ const config = {
             items: [
               { label: "Crear orden ecommerce", to: "/checkout" },
               { label: "Campos del endpoint", to: "/checkout/campos" },
-              { label: "Configuración del sitio", to: "/checkout/configuracion-del-sitio" },
+              { label: "Pasarelas de pago", to: "/checkout/pasarelas-de-pago" },
             ],
           },
           {

@@ -51,7 +51,7 @@ Ver [Envíos](/checkout/envios).
 
 ## Moneda, descuento y memo
 
-- **currency_id**: id de `currencies`. Si no existe, HTTP 400. Si se omite, se usa la moneda de la entidad. NeoPay y BAC solo cobran GTQ (id 1); QPayPro cobra GTQ o USD (id 2); transferencia acepta cualquier moneda.
+- **currency_id**: id de `currencies`. Si no existe, HTTP 400. Si se omite, se usa la moneda de la entidad. Las pasarelas restringen qué moneda pueden cobrar; ver [Pasarelas de pago](/checkout/pasarelas-de-pago).
 - **extra_discount_percent** / **extra_discount_amount**: mutuamente excluyentes. Solo aplican si el sitio tiene `accept_extra_discount_from_endpoint`. Ver [Descuentos](/checkout/descuentos).
 - **memo**: texto libre. El handler concatena memos de conversión de moneda, recolección en tienda, tipo de cambio del pago y GiftCard.
 - **reference**: referencia de la orden (`orders.reference`). Default `""`.
@@ -78,7 +78,7 @@ Detección: `transName` + `transBank` + `transDate`. Para completar el cobro, ta
 - **transNumber**: número de comprobante. Obligatorio al procesar.
 - **transFile**: archivo o lista de archivos (multipart). Se sube a `media` y se asocia al `bank_transfer_request`. Obligatorio.
 
-La orden con transferencia queda en estado `paid` (el código no la deja en `pending`).
+La orden con transferencia queda en estado `paid` (el código no la deja en `pending`). Ver [Pasarelas de pago](/checkout/pasarelas-de-pago) y [Respuestas y errores](/checkout/respuestas-y-errores).
 
 ## Gift cards
 

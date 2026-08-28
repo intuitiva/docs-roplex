@@ -40,3 +40,6 @@ El `id` de la orden es un UUID generado al crear el documento.
 - [Envíos](/checkout/envios): zonas, métodos, reglas y recolección en tienda.
 - [Descuentos](/checkout/descuentos): `extra_discount_percent` y `extra_discount_amount`.
 - [Gift cards](/checkout/gift-cards): hasta dos tarjetas y cotización previa.
+- [Pasarelas de pago](/checkout/pasarelas-de-pago): NeoPay, QPayPro, BAC PowerTranz y transferencia.
+- [Respuestas y errores](/checkout/respuestas-y-errores): HTTP 200 y cuerpos de error.
+- [Sincronización con Zauru](/checkout/sincronizacion-con-zauru): `ecommerce_requests` y webhooks del sitio.

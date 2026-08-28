@@ -40,7 +40,7 @@ Visa Cuotas (en cada pasarela de tarjeta): `minimum_amount` (por defecto 1000) y
 
 El mapeo `currency_payment_methods` asocia cada moneda con un método de pago de Zauru marcado `ecommerce` y con el mismo `currency_id`. El checkout usa esa fila para el `payment_method_id` que viaja a Zauru.
 
-Las credenciales las proporciona cada pasarela (NeoNet, QPayPro o BAC). No se envían en el body del checkout.
+Las credenciales las proporciona cada pasarela (NeoNet, QPayPro o BAC). No se envían en el body del checkout. Detalle de cobro: [Pasarelas de pago](/checkout/pasarelas-de-pago).
 
 ## Correo
 
