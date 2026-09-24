@@ -47,8 +47,7 @@ Ver [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure) antes de impl
 - [Ítems, precios y stock](/checkout/items-precios-y-stock): cómo se arman las líneas y de dónde sale el precio.
 - [Envíos](/checkout/envios): zonas, métodos, reglas y recolección en tienda.
 - [Descuentos](/checkout/descuentos): `extra_discount_percent` y `extra_discount_amount`.
-- [Gift cards](/checkout/gift-cards): hasta dos tarjetas por orden.
-- [Cotización de gift card](/checkout/cotizacion-de-gift-card): consultar el saldo aplicable antes de cobrar.
+- [GiftCards](/gift-cards): consultar saldo y aplicar hasta dos tarjetas por orden.
 - [Pasarelas de pago](/checkout/pasarelas-de-pago): NeoPay, QPayPro, BAC PowerTranz y transferencia.
 - [Autenticación 3-D Secure](/checkout/autenticacion-3d-secure): cómo completar el cobro con tarjeta.
 - [Respuestas y errores](/checkout/respuestas-y-errores): la respuesta 200 y los cuerpos de error.

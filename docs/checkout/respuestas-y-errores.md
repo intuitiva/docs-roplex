@@ -20,7 +20,7 @@ El éxito **no** se envuelve en `{ "success": true }` a nivel raíz. Los errores
 | Clave | Tipo | Contenido |
 |---|---|---|
 | `order_id` | string | UUID de la orden. Es el identificador que debe guardar la tienda. |
-| `gift_card` | object \| null | `null` si no se aplicó ninguna tarjeta. Ver [Gift cards](/checkout/gift-cards#qué-devuelve-la-respuesta). |
+| `gift_card` | object \| null | `null` si no se aplicó ninguna tarjeta. Ver [Usar GiftCards en el checkout](/gift-cards/usar-en-checkout#respuesta-del-checkout). |
 | `message` | string | Resultado en texto. Ver la tabla siguiente. |
 | `payment_response` | object \| null | Depende del medio de cobro. Ver más abajo. |
 
@@ -165,7 +165,9 @@ Cuerpo típico:
 | 400 o 500 | Falla de la pasarela. Es 400 si hay `user_message`, 500 si no. QPayPro además incluye `qpaypro_response` con un `redirect_url` de error |
 | 400 | `{ "message": "No body" }` o `{ "message": "FormData not available" }`, sin la clave `success` |
 
-Los códigos de gift card están listados en [Cotización de gift card](/checkout/cotizacion-de-gift-card#errores).
+Los códigos de GiftCard están listados en
+[Consultar saldo y cotizar](/gift-cards/consultar-saldo#errores) y en
+[Usar GiftCards en el checkout](/gift-cards/usar-en-checkout#errores-propios-del-checkout).
 
 ## Troubleshooting
 

@@ -1,0 +1,7 @@
+{
+  "position": 3,
+  "label": "GiftCards",
+  "link": { "type": "doc", "id": "gift-cards/index" },
+  "collapsible": true,
+  "collapsed": false
+}

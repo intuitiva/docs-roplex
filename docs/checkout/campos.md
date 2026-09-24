@@ -136,10 +136,12 @@ La orden con transferencia queda pagada de inmediato. Ver [Pasarelas de pago](/c
 |---|---|---|
 | `gift_card_1_id_number` | string | Código de la primera tarjeta. |
 | `gift_card_2_id_number` | string | Código de la segunda. No se puede enviar sola y debe ser distinta de la primera. |
-| `gift_card_1_discount` | number | Tope opcional a aplicar de la primera, en la moneda de la orden. Debe ser mayor o igual a 0. |
-| `gift_card_2_discount` | number | Tope opcional de la segunda. |
+| `gift_card_1_discount` | number \| string | Tope opcional a aplicar de la primera, en la moneda de la orden. Debe ser mayor o igual a 0. |
+| `gift_card_2_discount` | number \| string | Tope opcional de la segunda. |
 
-Si omite los topes, se aplica el máximo posible. Ver [Gift cards](/checkout/gift-cards) y [Cotización de gift card](/checkout/cotizacion-de-gift-card).
+Si omite los topes, se aplica el máximo posible. Ver
+[Usar GiftCards en el checkout](/gift-cards/usar-en-checkout) y
+[Consultar saldo y cotizar](/gift-cards/consultar-saldo).
 
 ## Ejemplo: pago con tarjeta
 

@@ -81,7 +81,10 @@ El reenvío usa el host guardado con la orden, no el del admin, así que los red
 
 ## Gift cards y Zauru
 
-El saldo de una gift card en Roplex se descuenta **solo si Zauru aceptó la orden**. Si el envío falla, los montos quedan registrados en la orden pero el saldo no se mueve. Ver [Gift cards](/checkout/gift-cards#cuándo-se-descuenta-el-saldo).
+El saldo de una GiftCard en Roplex se descuenta **solo si Zauru aceptó la
+orden**. Si el envío falla, los montos quedan registrados en la orden pero el
+saldo no se mueve. Ver
+[Cuándo se descuenta el saldo](/gift-cards/usar-en-checkout#cuándo-se-descuenta-el-saldo).
 
 ## Correo
 

@@ -55,7 +55,16 @@ const config = {
     [
       "@docusaurus/plugin-client-redirects",
       {
-        redirects: [],
+        redirects: [
+          {
+            from: "/checkout/gift-cards",
+            to: "/gift-cards/usar-en-checkout",
+          },
+          {
+            from: "/checkout/cotizacion-de-gift-card",
+            to: "/gift-cards/consultar-saldo",
+          },
+        ],
       },
     ],
   ],
@@ -76,6 +85,11 @@ const config = {
             sidebarId: "defaultSidebar",
             position: "left",
             label: "Checkout",
+          },
+          {
+            to: "/gift-cards",
+            position: "left",
+            label: "GiftCards",
           },
         ],
       },

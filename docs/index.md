@@ -37,3 +37,4 @@ POST /api/orders/create-ecommerce-order
 Más la configuración que ese endpoint necesita para funcionar, el flujo de autenticación de las tarjetas y la cotización de gift cards.
 
 - [Checkout](/checkout): flujo de la orden, autenticación, configuración del sitio, campos, pagos, 3-D Secure y sincronización con Zauru.
+- [GiftCards](/gift-cards): consulta de saldo, cotización y uso de hasta dos tarjetas en el checkout.
